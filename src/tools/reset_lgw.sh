@@ -40,6 +40,12 @@ term() {
     then
         echo "$SX1302_RESET_PIN" > /sys/class/gpio/unexport; WAIT_GPIO
     fi
+    # ln i2c
+    if [ -e /dev/i2c-0 ] && [ ! -e /dev/i2c-1 ]; then
+                ln -sf /dev/i2c-0 /dev/i2c-1;
+    elif [ -e /dev/i2c-1 ] && [ ! -e /dev/i2c-0 ]; then
+                ln -sf /dev/i2c-1 /dev/i2c-0;
+    fi
 }
 
 case "$1" in
