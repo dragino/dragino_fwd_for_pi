@@ -1718,6 +1718,7 @@ static int parse_gateway_configuration(const char* conf_file) {
             serv_entry->filter.fport = 0;
             serv_entry->filter.devaddr = 0;
             serv_entry->filter.nwkid = 0;
+            serv_entry->filter.deveui = 0;
 
             serv_entry->report = NULL;
 
@@ -1818,7 +1819,7 @@ static int parse_gateway_configuration(const char* conf_file) {
 
                 serv_entry->report = (report_s*)lgw_malloc(sizeof(report_s));
                 serv_entry->report->report_ready = false;
-                strcpy(serv_entry->report->stat_format, "semtech");;
+                strcpy(serv_entry->report->stat_format, "semtech");
                 serv_entry->report->stat_interval = DEFAULT_STAT_INTERVAL;
                 pthread_mutex_init(&serv_entry->report->mx_report, NULL);
 
@@ -1880,6 +1881,7 @@ static int parse_gateway_configuration(const char* conf_file) {
             serv_entry->filter.fport = NOFILTER;
             serv_entry->filter.devaddr = NOFILTER;
             serv_entry->filter.nwkid = NOFILTER;
+            serv_entry->filter.deveui = NOFILTER;
 
             val = json_object_get_value(serv_obj, "forward_crc_valid");
             if (val != NULL) {
@@ -1939,7 +1941,19 @@ static int parse_gateway_configuration(const char* conf_file) {
                 else
                     serv_entry->filter.nwkid = NOFILTER;
                 lgw_log(LOG_INFO, "[INFO~][SETTING][%s] packets received with a nwkid filter, level(%d)\n", serv_entry->info.name, serv_entry->filter.nwkid);
-            } 
+            }
+
+			val = json_object_get_value(serv_obj, "deveui_filter");
+            if (val != NULL) {
+                try = (uint8_t)json_value_get_number(val);
+                if (try == 1)
+                    serv_entry->filter.deveui = INCLUDE;
+                else if (try == 2)
+                    serv_entry->filter.deveui = EXCLUDE;
+                else
+                    serv_entry->filter.deveui = NOFILTER;
+                lgw_log(LOG_INFO, "[INFO~][SETTING][%s] packets received with a deveui filter, level(%d)\n", serv_entry->info.name, serv_entry->filter.deveui);
+            }
 
             LGW_LIST_INSERT_TAIL(&GW.serv_list, serv_entry, list);
         }

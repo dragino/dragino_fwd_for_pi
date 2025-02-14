@@ -111,70 +111,106 @@ int init_sock(const char *addr, const char *port, const void *timeout, int size)
 	return sockfd;
 }
 
-bool pkt_basic_filter(serv_s* serv, const uint32_t addr, const uint8_t fport) {
+bool pkt_basic_filter(serv_s* serv, const uint32_t addr, const uint8_t fport, const char* deveui) {
     char addr_key[64] = {0};
     char fport_key[48] = {0};
     char nwkid_key[64] = {0};
+    char deveui_key[64] = {0};
     uint8_t nwkid = 0;
 
     snprintf(addr_key, sizeof(addr_key), "%s/devaddr/%08X", serv->info.name, addr);
     snprintf(fport_key, sizeof(fport_key), "%s/fport/%u", serv->info.name, fport);
 #ifdef BIGENDIAN
-    nwkid = (addr >> 25) & 0xFF;   /* Devaddr Format:  31..25(NwkID)  24..0(NwkAddr) */
+    nwkid = (addr >> 25) & 0x7F;   /* Devaddr Format:  31..25(NwkID)  24..0(NwkAddr) */
 #else
-    nwkid = (addr << 25) & 0xFF;
+    nwkid = (addr) & 0x7F;
 #endif
     snprintf(nwkid_key, sizeof(nwkid_key), "%s/nwkid/%02X", serv->info.name, nwkid);
+    snprintf(deveui_key, sizeof(deveui_key), "%s/deveui/%s", serv->info.name, deveui);
 
-	lgw_log(LOG_DEBUG, "%s[%s-filter] fport-lv=%d, addr-lv=%d, nwkid-lv=%d, addr_key=%s, fport_key=%s, nwkid_key=%s\n", DEBUGMSG, serv->info.name, serv->filter.fport, serv->filter.devaddr, serv->filter.nwkid, addr_key, fport_key, nwkid_key);
+	lgw_log(LOG_INFO, "%s[%s-filter] fport-lv=%d, addr-lv=%d, nwkid-lv=%d, deveui-lv=%d, addr_key=%s, fport_key=%s, nwkid_key=%s, deveui_key=%s\n", INFOMSG, 
+						serv->info.name, serv->filter.fport, serv->filter.devaddr, serv->filter.nwkid, serv->filter.deveui, 
+						addr_key, fport_key, nwkid_key, deveui_key);
     
     switch(serv->filter.fport) {
         case INCLUDE: // 1
-            lgw_log(LOG_DEBUG, "%s[%s-filter] fport filter include\n", DEBUGMSG, serv->info.name);
-            if (lgw_db_key_exist(fport_key))
-                return true;  // filter
+            if (lgw_db_key_exist(fport_key)){
+				lgw_log(LOG_INFO, "%s[%s-filter] fport filter include\n", INFOMSG, serv->info.name);
+				return true;  // filter
+			}
+			lgw_log(LOG_INFO, "%s[%s-filter] fport filter not include\n", INFOMSG, serv->info.name);
             break;
         case EXCLUDE: // 2
-            lgw_log(LOG_DEBUG, "%s[%s-filter] fport filter exclude\n", DEBUGMSG, serv->info.name);
-            if (!lgw_db_key_exist(fport_key)) {
+            if (!lgw_db_key_exist(fport_key)){
+				lgw_log(LOG_INFO, "%s[%s-filter] fport filter exclude\n", INFOMSG, serv->info.name);
                 return true;  //filter
-            }
+			}
+			lgw_log(LOG_INFO, "%s[%s-filter] fport filter not exclude\n", INFOMSG, serv->info.name);
             break;
         default:
-            lgw_log(LOG_DEBUG, "%s[%s-filter] fport no filter\n", DEBUGMSG, serv->info.name);
+            lgw_log(LOG_INFO, "%s[%s-filter] fport no filter\n", INFOMSG, serv->info.name);
             break;
     }
 
     switch(serv->filter.devaddr) {
         case INCLUDE: //1
-            if (lgw_db_key_exist(addr_key))
+            if (lgw_db_key_exist(addr_key)){
+				lgw_log(LOG_INFO, "%s[%s-filter] devaddr filter include\n", INFOMSG, serv->info.name);
                 return true; // filter
+			}
+			lgw_log(LOG_INFO, "%s[%s-filter] devaddr filter not include\n", INFOMSG, serv->info.name);
             break;
         case EXCLUDE:
-            if (!lgw_db_key_exist(addr_key))
+            if (!lgw_db_key_exist(addr_key)){
+				lgw_log(LOG_INFO, "%s[%s-filter] devaddr filter exclude\n", INFOMSG, serv->info.name);
                 return true; 
+			}
+			lgw_log(LOG_INFO, "%s[%s-filter] devaddr filter not exclude\n", INFOMSG, serv->info.name);
             break;
         default:
-            lgw_log(LOG_DEBUG, "%s[%s-filter] devaddr no filter\n", DEBUGMSG, serv->info.name);
+            lgw_log(LOG_INFO, "%s[%s-filter] devaddr no filter\n", INFOMSG, serv->info.name);
             break;
     }
 
     switch(serv->filter.nwkid) {
         case INCLUDE: //1
-            if (lgw_db_key_exist(nwkid_key))
+            if (lgw_db_key_exist(nwkid_key)){
+				lgw_log(LOG_INFO, "%s[%s-filter] nwkid(%02X) filter include \n", INFOMSG, serv->info.name, nwkid);
                 return true; // filter
-            lgw_log(LOG_DEBUG, "%s[%s-filter] nwkid(%02X) not INCLUDE \n", DEBUGMSG, serv->info.name, nwkid);
+			}
+			lgw_log(LOG_INFO, "%s[%s-filter] nwkid(%02X) filter not include \n", INFOMSG, serv->info.name, nwkid);
             break;
         case EXCLUDE:
-            if (!lgw_db_key_exist(nwkid_key))
+            if (!lgw_db_key_exist(nwkid_key)){
+				lgw_log(LOG_INFO, "%s[%s-filter] nwkid(%02X) filter exclude \n", INFOMSG, serv->info.name, nwkid);
                 return true; 
-            lgw_log(LOG_DEBUG, "%s[%s-filter] nwkid(%02X) not EXCLUDE \n", DEBUGMSG, serv->info.name, nwkid);
+            }
+			lgw_log(LOG_INFO, "%s[%s-filter] nwkid(%02X) filter not exclude \n", INFOMSG, serv->info.name, nwkid);
             break;
         default:
-            lgw_log(LOG_DEBUG, "%s[%s-filter] nwkid(%02X) no filter\n", DEBUGMSG, serv->info.name, nwkid);
+            lgw_log(LOG_INFO, "%s[%s-filter] nwkid(%02X) no filter\n", INFOMSG, serv->info.name, nwkid);
             break;
     }
 
+	switch(serv->filter.deveui) {
+        case INCLUDE: //1
+            if (lgw_db_key_exist(deveui_key)){
+				lgw_log(LOG_INFO, "%s[%s-filter] deveui(%s) filter include \n", INFOMSG, serv->info.name, deveui);
+                return true; // filter
+            }
+			lgw_log(LOG_INFO, "%s[%s-filter] deveui(%s) filter not include \n", INFOMSG, serv->info.name, deveui);
+            break;
+        case EXCLUDE:
+            if (!lgw_db_key_exist(deveui_key)){
+				lgw_log(LOG_INFO, "%s[%s-filter] deveui(%s) filter exclude \n", INFOMSG, serv->info.name, deveui);
+                return true; 
+            }
+            lgw_log(LOG_INFO, "%s[%s-filter] deveui(%s) filter not exclude \n", INFOMSG, serv->info.name, deveui);
+            break;
+        default:
+            lgw_log(LOG_INFO, "%s[%s-filter] deveui(%s) no filter\n", INFOMSG, serv->info.name, deveui);
+            break;
+    }
     //lgw_log(LOG_DEBUG, "%s[%s-filter] default: no filter\n", DEBUGMSG, serv->info.name);
     return false;  // no-filter
 }

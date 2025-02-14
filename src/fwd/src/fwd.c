@@ -863,65 +863,65 @@ static void thread_up(void) {
 
     lgw_log(LOG_INFO, "%s[THREAD][fwd-UP] Start...\n", INFOMSG);
 
-    while (!exit_sig && !quit_sig) {
+	while (!exit_sig && !quit_sig) {
 
-	/*!> fetch packets */
+		/*!> fetch packets */
 
-	if (GW.cfg.radiostream_enabled == true) {
-	    pthread_mutex_lock(&GW.hal.mx_concent);
-	    nb_pkt = lgw_receive(NB_PKT_MAX, rxpkt);
-	    pthread_mutex_unlock(&GW.hal.mx_concent);
-        } else {
-	    nb_pkt = 0;
-        }
+		if (GW.cfg.radiostream_enabled == true) {
+		    pthread_mutex_lock(&GW.hal.mx_concent);
+		    nb_pkt = lgw_receive(NB_PKT_MAX, rxpkt);
+		    pthread_mutex_unlock(&GW.hal.mx_concent);
+	        } else {
+		    	nb_pkt = 0;
+	        }
 
-	if (nb_pkt == LGW_HAL_ERROR) {
-	    lgw_log(LOG_ERROR, "%s[fwd-UP] HAL receive failed, try restart HAL\n", ERRMSG);
-	    //exit(EXIT_FAILURE);
-	}
+		if (nb_pkt == LGW_HAL_ERROR) {
+		    lgw_log(LOG_ERROR, "%s[fwd-UP] HAL receive failed, try restart HAL\n", ERRMSG);
+		    //exit(EXIT_FAILURE);
+		}
 
-	if (GW.cfg.ghoststream_enabled == true)
-	    nb_pkt = ghost_get(NB_PKT_MAX - nb_pkt, &rxpkt[nb_pkt]) + nb_pkt;
+		if (GW.cfg.ghoststream_enabled == true)
+		    nb_pkt = ghost_get(NB_PKT_MAX - nb_pkt, &rxpkt[nb_pkt]) + nb_pkt;
 
-	if (GW.cfg.delay_enabled == true)
-	    nb_pkt = delay_pkt_get(10 - nb_pkt, &rxpkt[nb_pkt]) + nb_pkt;
+		if (GW.cfg.delay_enabled == true)
+		    nb_pkt = delay_pkt_get(10 - nb_pkt, &rxpkt[nb_pkt]) + nb_pkt;
 
-	/*!> wait a short time if no packets, nor status report */
-	if (nb_pkt == 0) {
+		/*!> wait a short time if no packets, nor status report */
+		if (nb_pkt == 0) {
+		    wait_ms(DEFAULT_FETCH_SLEEP_MS);
+		    continue;
+		}
+
+	    //lastest_us = rxpkt[0].count_us;
+
+	    rxpkt_entry = lgw_malloc(sizeof(rxpkts_s));     //rxpkts结构体包含有一个lora_pkt_rx_s结构数组
+
+	    if (NULL == rxpkt_entry) {
+	        continue;
+	    }
+
+	    rxpkt_entry->list.next = NULL;
+	    rxpkt_entry->entry_us = cur_hal_time;
+	    rxpkt_entry->stamps = 0;
+	    rxpkt_entry->nb_pkt = nb_pkt;
+	    rxpkt_entry->bind = GW.info.service_count;
+	    memcpy(rxpkt_entry->rxpkt, rxpkt, sizeof(struct lgw_pkt_rx_s) * nb_pkt);
+
+	    LGW_LIST_LOCK(&GW.rxpkts_list);
+	    LGW_LIST_INSERT_TAIL(&GW.rxpkts_list, rxpkt_entry, list);
+	    LGW_LIST_UNLOCK(&GW.rxpkts_list);
+
+	    lgw_log(LOG_DEBUG, "%s[fwd-UP] Size of package list is %d\n", DEBUGMSG, GW.rxpkts_list.size);
+	        
+	    LGW_LIST_TRAVERSE(&GW.serv_list, serv_entry, list) {
+	        if (sem_post(&serv_entry->thread.sema)) {
+	            lgw_log(LOG_DEBUG, "%s[%s-UP] post sem: %s\n", DEBUGMSG, serv_entry->info.name, strerror(errno));
+	        }
+	    }
+
 	    wait_ms(DEFAULT_FETCH_SLEEP_MS);
-	    continue;
+
 	}
-
-        //lastest_us = rxpkt[0].count_us;
-
-        rxpkt_entry = lgw_malloc(sizeof(rxpkts_s));     //rxpkts结构体包含有一个lora_pkt_rx_s结构数组
-
-        if (NULL == rxpkt_entry) {
-            continue;
-        }
-
-        rxpkt_entry->list.next = NULL;
-        rxpkt_entry->entry_us = cur_hal_time;
-        rxpkt_entry->stamps = 0;
-        rxpkt_entry->nb_pkt = nb_pkt;
-        rxpkt_entry->bind = GW.info.service_count;
-        memcpy(rxpkt_entry->rxpkt, rxpkt, sizeof(struct lgw_pkt_rx_s) * nb_pkt);
-
-        LGW_LIST_LOCK(&GW.rxpkts_list);
-        LGW_LIST_INSERT_TAIL(&GW.rxpkts_list, rxpkt_entry, list);
-        LGW_LIST_UNLOCK(&GW.rxpkts_list);
-
-        lgw_log(LOG_DEBUG, "%s[fwd-UP] Size of package list is %d\n", DEBUGMSG, GW.rxpkts_list.size);
-        
-        LGW_LIST_TRAVERSE(&GW.serv_list, serv_entry, list) {
-            if (sem_post(&serv_entry->thread.sema)) {
-                lgw_log(LOG_DEBUG, "%s[%s-UP] post sem: %s\n", DEBUGMSG, serv_entry->info.name, strerror(errno));
-            }
-        }
-
-         wait_ms(DEFAULT_FETCH_SLEEP_MS);
-
-    }
 
     lgw_log(LOG_INFO, "%s[THREAD][fwd-UP] Ended!\n", INFOMSG);
 }
@@ -936,11 +936,11 @@ static void thread_rxpkt_recycle(void) {
     rxpkts_s* rxpkt_entry = NULL;
     serv_s* serv_entry = NULL;
 
-    lgw_log(LOG_INFO, "%s[THREAD][RECYCLE] Starting...\n", INFOMSG);
+	lgw_log(LOG_INFO, "%s[THREAD][RECYCLE] Starting...\n", INFOMSG);
 
-    while (!exit_sig && !quit_sig) {
+	while (!exit_sig && !quit_sig) {
 
-	wait_ms(time_ms);
+		wait_ms(time_ms);
 
         if (GW.rxpkts_list.size > 1) {   
             LGW_LIST_TRAVERSE(&GW.serv_list, serv_entry, list) {
@@ -965,8 +965,8 @@ static void thread_rxpkt_recycle(void) {
             }
             LGW_LIST_TRAVERSE_SAFE_END;
             LGW_LIST_UNLOCK(&GW.rxpkts_list);
-	    lgw_log(LOG_DEBUG, "%s[RECYCLE]  recycle deal(=%d), remain(=%d)\n", DEBUGMSG, deal, GW.rxpkts_list.size);
-	}
+	        lgw_log(LOG_DEBUG, "%s[RECYCLE]  recycle deal(=%d), remain(=%d)\n", DEBUGMSG, deal, GW.rxpkts_list.size);
+	    }
 
         if (GW.rxpkts_list.size > MAX_RXPKTS_LIST_SIZE) {   
             deal = 0;
@@ -981,7 +981,7 @@ static void thread_rxpkt_recycle(void) {
             }
             LGW_LIST_TRAVERSE_SAFE_END;
             LGW_LIST_UNLOCK(&GW.rxpkts_list);
-	    lgw_log(LOG_DEBUG, "%s[RECYCLE] remove entry_us > 12s, deal(=%d), remain(=%d)\n", DEBUGMSG, deal, GW.rxpkts_list.size);
+	        lgw_log(LOG_DEBUG, "%s[RECYCLE] remove entry_us > 12s, deal(=%d), remain(=%d)\n", DEBUGMSG, deal, GW.rxpkts_list.size);
         }
     }
 

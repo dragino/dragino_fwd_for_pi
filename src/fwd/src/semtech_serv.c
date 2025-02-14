@@ -248,14 +248,16 @@ static void thread_push_up(void* arg) {
         //
 
         if (macmsg.BufSize != 0) {
-            if (serv->filter.fport != NOFILTER || serv->filter.devaddr != NOFILTER || serv->filter.nwkid != NOFILTER) {
-                if (pkt_basic_filter(serv, macmsg.FHDR.DevAddr, macmsg.FPort)) {
-                    lgw_log(LOG_DEBUG, "%s[PKTS][%s-UP] Filter packet has fport(%u) of %08X.\n", DEBUGMSG, serv->info.name, macmsg.FPort, macmsg.FHDR.DevAddr);
+            if (serv->filter.fport != NOFILTER || serv->filter.devaddr != NOFILTER || 
+				serv->filter.nwkid != NOFILTER || serv->filter.deveui != NOFILTER) {
+                if (pkt_basic_filter(serv, macmsg.FHDR.DevAddr, macmsg.FPort, macmsg.DevEUI)) {
+                    lgw_log(LOG_INFO, "%s[PKTS][%s-UP] Filter packet has fport(%u) of %08X.\n", INFOMSG, serv->info.name, macmsg.FPort, macmsg.FHDR.DevAddr);
                     pthread_mutex_unlock(&serv->report->mx_report);
                     continue;
                 }
             }
         }
+        decode_mac_pkt_up(&macmsg, p);
 
         serv->report->stat_up.meas_up_pkt_fwd += 1;
         serv->report->stat_up.meas_up_payload_byte += p->size;
@@ -1524,7 +1526,7 @@ static void semtech_push_up(void* arg) {
 
     lgw_log(LOG_INFO, "%s[THREAD][%s] Semtech UP service Starting...\n", INFOMSG, serv->info.name);
 
-    while (!serv->thread.stop_sig) {
+	while (!serv->thread.stop_sig) {
         sem_wait(&serv->thread.sema);
         do {
             serv_ct_s *serv_ct = lgw_malloc(sizeof(serv_ct_s));
@@ -1554,6 +1556,6 @@ static void semtech_push_up(void* arg) {
 
     }
 
-    lgw_log(LOG_INFO, "\n%s[THREAD][%s-UP] Ended!\n", INFOMSG, serv->info.name);
+	lgw_log(LOG_INFO, "\n%s[THREAD][%s-UP] Ended!\n", INFOMSG, serv->info.name);
 }
 

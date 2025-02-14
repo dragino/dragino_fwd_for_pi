@@ -160,6 +160,7 @@ typedef struct _server {
         filter_e fport;             /*!> 0/1/2, 0不处理，1如果过滤匹配数据库的，2转发匹配数据库的 */
         filter_e devaddr;           /*!> 和fport相同 */
         filter_e nwkid;             /*!> 和fport相同 */
+        filter_e deveui;             /*!> 和fport相同 */
         bool fwd_valid_pkt;         /*!> packets with PAYLOAD CRC OK are forwarded */
         bool fwd_error_pkt;         /*!> packets with PAYLOAD CRC ERROR are NOT forwarded */
         bool fwd_nocrc_pkt;         /*!> packets with NO PAYLOAD CRC are NOT forwarded */

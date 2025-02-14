@@ -201,6 +201,14 @@ typedef struct sLoRaMacMessageData
      * MAC header
      */
     LoRaMacHeader_t MHDR;
+	/*!
+     * APPEUI
+     */
+    uint8_t AppEUI[20];
+	/*!
+	 * DEVEUI
+	 */
+	uint8_t DevEUI[20];
     /*!
      * Frame header (FHDR)
      */

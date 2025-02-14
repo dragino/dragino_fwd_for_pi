@@ -499,8 +499,9 @@ static void thread_pkt_deal_up(void* arg) {
         if (LORAMAC_PARSER_SUCCESS != LoRaMacParserData(&macmsg))    /*!> MAC decode */
             continue;
 
-        if (serv->filter.fport != NOFILTER || serv->filter.devaddr != NOFILTER || serv->filter.nwkid != NOFILTER) {
-            if (pkt_basic_filter(serv, macmsg.FHDR.DevAddr, macmsg.FPort)) {
+        if (serv->filter.fport != NOFILTER || serv->filter.devaddr != NOFILTER || 
+			serv->filter.nwkid != NOFILTER || serv->filter.deveui != NOFILTER) {
+            if (pkt_basic_filter(serv, macmsg.FHDR.DevAddr, macmsg.FPort, macmsg.DevEUI)) {
                 lgw_log(LOG_DEBUG, "%s[%s-UP] Drop a packet has fport(%u) of %08X.\n", DEBUGMSG, serv->info.name, macmsg.FPort, macmsg.FHDR.DevAddr);
                 continue;
             }
@@ -548,7 +549,7 @@ static void thread_pkt_deal_up(void* arg) {
 
             if (GW.cfg.mac_decode) {
                 uint32_t fcnt, mic;
-		bool fcnt_valid = false;
+				bool fcnt_valid = false;
                 lgw_memcpy(payload_encrypt, p->payload + 9 + macmsg.FHDR.FCtrl.Bits.FOptsLen, fsize);
                 for (j = 0; j < GW.cfg.fcnt_gap; j++) {   
                     fcnt = macmsg.FHDR.FCnt | (j * 0x10000);
@@ -1045,38 +1046,38 @@ static void pkt_deal_up(void* arg) {
 
 	while (!serv->thread.stop_sig) {
 
-	    sem_wait(&serv->thread.sema);
+		sem_wait(&serv->thread.sema);
 
-            if (pthread_pkt_count > MAX_PKT_PTHREADS) {
-                lgw_log(LOG_DEBUG, "THREAD~ [%s] WAR! More decode threads(=%d), skip current pacakege!\n", serv->info.name, pthread_pkt_count);
-                continue;   //wait for , next trigger, next time, will miss some package
-            }
+        if (pthread_pkt_count > MAX_PKT_PTHREADS) {
+            lgw_log(LOG_DEBUG, "THREAD~ [%s] WAR! More decode threads(=%d), skip current pacakege!\n", serv->info.name, pthread_pkt_count);
+            continue;   //wait for , next trigger, next time, will miss some package
+        }
 
-        //do {
-            serv_ct_s *serv_ct = lgw_malloc(sizeof(serv_ct_s));
-            serv_ct->serv = serv;
-            serv_ct->nb_pkt = get_rxpkt(serv_ct);     //only get the first rxpkt of list
+    //do {
+        serv_ct_s *serv_ct = lgw_malloc(sizeof(serv_ct_s));
+        serv_ct->serv = serv;
+        serv_ct->nb_pkt = get_rxpkt(serv_ct);     //only get the first rxpkt of list
 
-            if (serv_ct->nb_pkt == 0) {
-                lgw_free(serv_ct);
-                continue;
-            }
+        if (serv_ct->nb_pkt == 0) {
+            lgw_free(serv_ct);
+            continue;
+        }
 
-            pthread_t ntid;
+        pthread_t ntid;
 
-            if (lgw_pthread_create(&ntid, NULL, (void *(*)(void *))thread_pkt_deal_up, (void *)serv_ct)) {
-                lgw_free(serv_ct);
-                lgw_log(LOG_WARNING, "%s[THREAD][%s] Can't create push_up pthread.\n", WARNMSG, serv->info.name);
-            } else {
-                pthread_detach(ntid);
-                pthread_mutex_lock(&mx_pthread_pkt_count);
-                pthread_pkt_count++;
-                pthread_mutex_unlock(&mx_pthread_pkt_count);
-            }
+        if (lgw_pthread_create(&ntid, NULL, (void *(*)(void *))thread_pkt_deal_up, (void *)serv_ct)) {
+            lgw_free(serv_ct);
+            lgw_log(LOG_WARNING, "%s[THREAD][%s] Can't create push_up pthread.\n", WARNMSG, serv->info.name);
+        } else {
+            pthread_detach(ntid);
+            pthread_mutex_lock(&mx_pthread_pkt_count);
+            pthread_pkt_count++;
+            pthread_mutex_unlock(&mx_pthread_pkt_count);
+        }
 
-            lgw_log(LOG_DEBUG, "%s[THREAD][%s] pkt_push_up(count=%d) fetch %d %s.\n", DEBUGMSG, serv->info.name, pthread_pkt_count, serv_ct->nb_pkt, serv_ct->nb_pkt < 2 ? "packet" : "packets");
+        lgw_log(LOG_DEBUG, "%s[THREAD][%s] pkt_push_up(count=%d) fetch %d %s.\n", DEBUGMSG, serv->info.name, pthread_pkt_count, serv_ct->nb_pkt, serv_ct->nb_pkt < 2 ? "packet" : "packets");
 
-        //} while (GW.rxpkts_list.size > 1 && (!serv->thread.stop_sig));  
+    //} while (GW.rxpkts_list.size > 1 && (!serv->thread.stop_sig));  
     }
 
     lgw_log(LOG_INFO, "%s[THREAD][%s] ENDED!\n", INFOMSG, serv->info.name);

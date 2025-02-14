@@ -20,7 +20,17 @@ LoRaMacParserStatus_t LoRaMacParserData( LoRaMacMessageData_t* macMsg )
 
     switch (macMsg->MHDR.Bits.MType) {
         case FRAME_TYPE_JOIN_ACCEPT: 
+			return LORAMAC_PARSER_SUCCESS;
         case FRAME_TYPE_JOIN_REQ: 
+			uint8_t cat[3]={'\0'};
+			for (bufItr = 8; bufItr > 0; bufItr--) {  //APPEUI
+                sprintf(cat, "%02X", macMsg->Buffer[bufItr]);
+                strcat(macMsg->AppEUI, cat);
+            }
+            for (bufItr = 16; bufItr > 8; bufItr--) { //DEVEUI
+                sprintf(cat, "%02X", macMsg->Buffer[bufItr]);
+                strcat(macMsg->DevEUI, cat);
+            }
             return LORAMAC_PARSER_SUCCESS;
         default:
             break;
@@ -121,8 +131,8 @@ void decode_mac_pkt_up(LoRaMacMessageData_t* macMsg, void* pkt)
     }
 
     int idx = 1;
-    char appeui[17] = {'\0'};
-    char deveui[17] = {'\0'};
+    //char appeui[17] = {'\0'};
+    //char deveui[17] = {'\0'};
     char cat[3] = {'\0'};
     char pdtype[32] = {'\0'};
     char content[256] = {'\0'};
@@ -212,16 +222,17 @@ void decode_mac_pkt_up(LoRaMacMessageData_t* macMsg, void* pkt)
             sprintf(pdtype, "DATA_UNCONF_UP");
             break;
         case FRAME_TYPE_JOIN_REQ: 
+			#if 0
             for (idx = 8; idx > 0; idx--) {  //APPEUI
                 sprintf(cat, "%02X", macMsg->Buffer[idx]);
-                strcat(appeui, cat);
+                strcat(macMsg->AppEUI, cat);
             }
             for (idx = 16; idx > 8; idx--) { //DEVEUI
                 sprintf(cat, "%02X", macMsg->Buffer[idx]);
-                strcat(deveui, cat);
+                strcat(macMsg->DevEUI, cat);
             }
-
-            snprintf(content, sizeof(content), "[JOIN_REQ]:{\"Size\":%d, \"Rssi\":%.0f, \"snr\":%.0f, \"AppEUI\":\"%s\", \"DevEUI\":\"%s\"}", p->size, p->rssic, p->snr, appeui, deveui);
+			#endif
+            snprintf(content, sizeof(content), "[JOIN_REQ]:{\"Size\":%d, \"Rssi\":%.0f, \"snr\":%.0f, \"AppEUI\":\"%s\", \"DevEUI\":\"%s\"}", p->size, p->rssic, p->snr, macMsg->AppEUI, macMsg->DevEUI);
             for (idx = 0; idx < p->size; idx++) {
                 sprintf(cat, "%02X", p->payload[idx]);
                 strcat(payloadhex, cat);
